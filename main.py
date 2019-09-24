@@ -14,7 +14,7 @@ fs = CryptFS(getpass(), fs_loc)
 open_dirs = {}
 cwd = '/'
 
-def ls(d = None):
+def ls_recursive(d = None):
     if d==None:
         d = cwd
     else:
@@ -24,25 +24,31 @@ def ls(d = None):
             d+='/'
     matching = d[1:]
     ln = len(matching)
-    listed_subdirs = []
     for i in fs.filenames:
         if i.startswith('/'):
             i = i[1:]
         if i.startswith(matching):
             i = i[ln:]
-            l = i.find('/')
-            if l!=-1:
-                i = i[:l]
-                if not i in listed_subdirs:
-                    listed_subdirs.append(i)
-                    yield i
+            yield i
+def ls(d=None):
+    listed_subdirs = []
+    for i in ls_recursive(d):
+        l = i.find('/')
+        if l!=-1:
+            i = i[:l]
+            if not i in listed_subdirs:
+                listed_subdirs.append(i)
+                yield i+'/'
+        else:
+            yield i
 def cpo(realdir, d=None):
     if d==None:
         d = cwd
     elif not d.endswith('/'):
         d+='/'
-    for i in ls(d):
+    for i in ls_recursive(d):
         path = os.path.join(realdir, i)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         fs.cpout(d+i, path)
         #print(d+i, path)
 def cpi(realdir, d=None):
