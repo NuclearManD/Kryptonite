@@ -1,7 +1,8 @@
+import os, glob, subprocess
 from kryptonite import *
 from getpass import getpass
-import os, glob
-from shutil import rmtree
+from shutil import rmtree, which
+from random import randint
 
 
 fs_loc = "./kryp_fs/"
@@ -13,7 +14,7 @@ fs = CryptFS(getpass(), fs_loc)
 open_dirs = {}
 cwd = '/'
 
-def ls(d = None):
+def ls_recursive(d = None):
     if d==None:
         d = cwd
     else:
@@ -23,25 +24,31 @@ def ls(d = None):
             d+='/'
     matching = d[1:]
     ln = len(matching)
-    listed_subdirs = []
     for i in fs.filenames:
         if i.startswith('/'):
             i = i[1:]
         if i.startswith(matching):
             i = i[ln:]
-            l = i.find('/')
-            if l!=-1:
-                i = i[:l]
-                if not i in listed_subdirs:
-                    listed_subdirs.append(i)
-                    yield i
+            yield i
+def ls(d=None):
+    listed_subdirs = []
+    for i in ls_recursive(d):
+        l = i.find('/')
+        if l!=-1:
+            i = i[:l]
+            if not i in listed_subdirs:
+                listed_subdirs.append(i)
+                yield i+'/'
+        else:
+            yield i
 def cpo(realdir, d=None):
     if d==None:
         d = cwd
     elif not d.endswith('/'):
         d+='/'
-    for i in ls(d):
+    for i in ls_recursive(d):
         path = os.path.join(realdir, i)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         fs.cpout(d+i, path)
         #print(d+i, path)
 def cpi(realdir, d=None):
@@ -54,7 +61,7 @@ def cpi(realdir, d=None):
         if os.path.isfile(i):
             path = d+os.path.relpath(i, realdir)
             fs.cpin(i, path)
-def opendir(realdir):
+def opendir(realdir, krypdir = None):
     global open_dirs
     absdir = os.path.abspath(realdir)
     if absdir in open_dirs.keys():
@@ -64,8 +71,10 @@ def opendir(realdir):
     if not os.path.isdir(absdir):
         print("Error: {} is not a valid real path!".format(realdir))
         return
-    cpo(realdir, cwd)
-    open_dirs[absdir] = cwd
+    if krypdir==None:
+        krypdir = cwd
+    cpo(realdir, krypdir)
+    open_dirs[absdir] = krypdir
 def closedir(realdir):
     global open_dirs
     absdir = os.path.abspath(realdir)
@@ -75,7 +84,22 @@ def closedir(realdir):
     cpi(realdir, open_dirs[absdir])
     open_dirs.pop(absdir)
     rmtree(absdir)
-    
+def launch_if_exists(cmd):
+    if None!=which(cmd[0]):
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return True
+    else:
+        return False
+
+linux_file_managers = [
+    'thunar',
+    'nautilus',
+    'dolphin',
+    'pcmanfm',
+    'xfe',
+    'nemo'
+]
+
 while True:
     inp = input("kryptonite: {} >".format(cwd))
     tokens = inp.split(' ')
@@ -132,7 +156,30 @@ while True:
         print("Shutting down...")
         fs.break_instance()
         break
-        
+    elif cmd=='mount':
+        if len(tokens)<1:
+            path = cwd
+        else:
+            path = tokens[0]
+            if not path.startswith('/'):
+                path=cwd+path
+            if not path.endswith('/'):
+                path+='/'
+            last_elem = path.split('/')[-2]
+            mount_dir = os.path.join('/tmp/', last_elem+'_'+hex(randint(0,65536)))
+            opendir(mount_dir, path)
+
+            # now detect what file manager the OS has
+            detected = None
+            for i in linux_file_managers:
+                if launch_if_exists([i, mount_dir]):
+                    detected = i
+                    break # Returns true when launch succeeds.
+            if detected==None:
+                print("No file manager detected.  Mounted to {}".format(mount_dir))
+            else:
+                print("Launched {} at {}".format(detected, mount_dir))
+            
     elif cmd=='help':
         print("""Commands:
   ls [dir] : default to cwd
@@ -141,6 +188,7 @@ while True:
   close realdir
   cpo realdir
   closeall
+  mount [dir] : default to cwd
   die
   help""")
     else:
