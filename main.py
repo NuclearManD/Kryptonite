@@ -35,7 +35,7 @@ def ls(d = None):
                 i = i[:l]
                 if not i in listed_subdirs:
                     listed_subdirs.append(i)
-                    yield i
+                    yield i+'/'
 def cpo(realdir, d=None):
     if d==None:
         d = cwd
