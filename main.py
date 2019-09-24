@@ -7,7 +7,7 @@ from random import randint
 
 fs_loc = "./kryp_fs/"
 
-print("Kryptonite Interface v0.1")
+print("Kryptonite Interface v1.0")
 
 fs = CryptFS(getpass(), fs_loc)
 
@@ -161,24 +161,25 @@ while True:
             path = cwd
         else:
             path = tokens[0]
-            if not path.startswith('/'):
-                path=cwd+path
-            if not path.endswith('/'):
-                path+='/'
-            last_elem = path.split('/')[-2]
-            mount_dir = os.path.join('/tmp/', last_elem+'_'+hex(randint(0,65536)))
-            opendir(mount_dir, path)
 
-            # now detect what file manager the OS has
-            detected = None
-            for i in linux_file_managers:
-                if launch_if_exists([i, mount_dir]):
-                    detected = i
-                    break # Returns true when launch succeeds.
-            if detected==None:
-                print("No file manager detected.  Mounted to {}".format(mount_dir))
-            else:
-                print("Launched {} at {}".format(detected, mount_dir))
+        if not path.startswith('/'):
+            path=cwd+path
+        if not path.endswith('/'):
+            path+='/'
+        last_elem = path.split('/')[-2]
+        mount_dir = os.path.join('/tmp/', last_elem+'_'+hex(randint(0,65536)))
+        opendir(mount_dir, path)
+
+        # now detect what file manager the OS has
+        detected = None
+        for i in linux_file_managers:
+            if launch_if_exists([i, mount_dir]):
+                detected = i
+                break # Returns true when launch succeeds.
+        if detected==None:
+            print("No file manager detected.  Mounted to {}".format(mount_dir))
+        else:
+            print("Launched {} at {}".format(detected, mount_dir))
             
     elif cmd=='help':
         print("""Commands:
