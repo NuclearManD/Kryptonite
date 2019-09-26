@@ -1,4 +1,4 @@
-import os, glob, subprocess
+import os, glob, subprocess, sys
 from kryptonite import *
 from getpass import getpass
 from shutil import rmtree, which
@@ -7,7 +7,7 @@ from random import randint
 
 fs_loc = "./kryp_fs/"
 
-print("Kryptonite Interface v1.0")
+print("Kryptonite Interface v1.1")
 
 fs = CryptFS(getpass(), fs_loc)
 
@@ -100,10 +100,8 @@ linux_file_managers = [
     'nemo'
 ]
 
-while True:
-    inp = input("kryptonite: {} >".format(cwd))
-    tokens = inp.split(' ')
-
+def exec_command(tokens):
+    global cwd, fs
     cmd = tokens[0]
     tokens = tokens[1:]
 
@@ -127,19 +125,19 @@ while True:
         if len(tokens)<1:
             print("Usage: open realdir")
             print("Opens the current working directory in a decrypted filesystem")
-            continue
+            return False
         opendir(tokens[0])
     elif cmd=='close':
         if len(tokens)<1:
             print("Usage: close realdir")
             print("Closes the current working directory in a decrypted filesystem")
-            continue
+            return False
         closedir(tokens[0])
     elif cmd=='cpo':
         if len(tokens)<1:
             print("Usage: cpo realdir")
             print("Copies the current working directory to a decrypted filesystem")
-            continue
+            return False
         cpi(tokens[0])
     elif cmd=='closeall':
         # open_dirs keysize will change during loop, so get all keys before execution
@@ -155,7 +153,7 @@ while True:
             closedir(i)
         print("Shutting down...")
         fs.break_instance()
-        break
+        return True
     elif cmd=='mount':
         if len(tokens)<1:
             path = cwd
@@ -180,7 +178,10 @@ while True:
             print("No file manager detected.  Mounted to {}".format(mount_dir))
         else:
             print("Launched {} at {}".format(detected, mount_dir))
-            
+    elif cmd=='mountdie':
+        exec_command(['mount']+tokens)
+        input("Press enter to dismount and quit")
+        return exec_command(['die'])
     elif cmd=='help':
         print("""Commands:
   ls [dir] : default to cwd
@@ -190,8 +191,18 @@ while True:
   cpo realdir
   closeall
   mount [dir] : default to cwd
+  mountdie [dir] : default to cwd
   die
   help""")
     else:
         print("Unknown command: {}.  Type 'help' for a list of commands.".format(cmd))
-        
+    return False
+if len(sys.argv)>1:
+    exec_command(sys.argv[1:])
+else:
+    while True:
+        inp = input("kryptonite: {} >".format(cwd))
+        tokens = inp.split(' ')
+
+        if exec_command(tokens):
+            break
